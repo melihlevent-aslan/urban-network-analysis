@@ -25,4 +25,4 @@ The project applies concepts from Graph Theory and Spatial Decision Support Syst
 * [ ] Visualize accessibility heatmaps for public transit stops.
 
 ---
-Melih Levent Aslan | M.Sc. Student, University of Bonn
+*Melih Levent Aslan | M.Sc. Geodetic Engineering Student, University of Bonn*
