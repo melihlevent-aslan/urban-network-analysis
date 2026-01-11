@@ -1,28 +1,62 @@
-# Graph-Based Urban Network Analysis
+# Graph-Based Urban Network Analysis: Bonn Digital Twin
 
-![Python](https://img.shields.io/badge/Language-Python-blue)
-![Graph Theory](https://img.shields.io/badge/Topic-Network_Analysis-green)
+![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python)
+![OSMnx](https://img.shields.io/badge/OSMnx-v2.0-orange?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Completed-success?style=for-the-badge)
 
-## Project Overview
-This project focuses on the algorithmic analysis of urban street networks to quantify accessibility and walkability. By modeling the city as a graph structure, it computes spatial metrics such as shortest-path distances to critical infrastructure and centrality measures for every land parcel.
+> **A Spatial Decision Support System (SDSS) for the "15-Minute City"**
+> *Developed as part of the M.Sc. Geodetic Engineering Program, University of Bonn.*
 
-## Theoretical Background
-The project applies concepts from Graph Theory and Spatial Decision Support Systems (SDSS). It aims to provide decision-makers with quantitative data regarding service gaps in public transportation and urban facility distribution.
+---
 
-## Key Features
-* **Graph Construction:** Automated retrieval of street networks from OpenStreetMap (OSM) via OSMnx.
-* **Walkability Index:** Calculation of isochrones and impedance-based accessibility scores for residential areas.
-* **Network Centrality:** Computation of Betweenness and Closeness centrality to identify critical junctions.
+##  Overview
+This project automates the quantitative analysis of urban street networks. By ingesting raw OpenStreetMap (OSM) data, it constructs a mathematical graph of Bonn, Germany, to calculate **accessibility**, **centrality**, and **optimal routing**.
 
-## Tech Stack
-* **Network Analysis:** NetworkX, OSMnx
-* **Data Handling:** Pandas, GeoPandas
-* **Visualization:** Matplotlib, Folium (Interactive Web Maps)
+The system serves as a "Digital Twin" component for surveyors (*ÖbVI*) and urban planners, moving beyond static maps to dynamic, algorithmic assessment of city infrastructure.
 
-## Roadmap
-* [ ] Ingest Bonn street network data.
-* [ ] Implement Dijkstra's algorithm for single-source shortest path problems.
-* [ ] Visualize accessibility heatmaps for public transit stops.
+---
 
+##  Key Results (The "Tech Edge")
+
+### 1. The Nervous System (Betweenness Centrality)
+*Analysis of 39,000+ nodes to identify critical infrastructure bottlenecks.*
+![Centrality Heatmap](bonn_centrality.png)
+> **Insight:** Yellow nodes represent intersections with the highest mathematical flow potential. These are the prime locations for commercial development or advertising.
+
+### 2. The 15-Minute City (Isochrone Analysis)
+*Quantifying walkability from the University Main Building (Hofgarten).*
+![Walkability Zones](bonn_walkability.png)
+> **Legend:**
+> * 🔴 **Red:** < 5 Minutes (Campus Core)
+> * 🟡 **Yellow:** < 10 Minutes (Market/Rhine)
+> * 🟢 **Green:** < 15 Minutes (District Court)
+
+### 3. The Surveyor's Commute (Shortest Path)
+*Optimizing the workflow between University and Land Registry (Amtsgericht).*
+![Surveyor Route](bonn_route.png)
+> **Result:** The algorithm determined the optimal path length to be **621.85 meters**, correcting for geodetic coordinate shifts.
+
+---
+
+##  Tech Stack
+* **Core Engine:** `OSMnx 2.0`, `NetworkX`
+* **Geospatial Processing:** `GeoPandas`, `Shapely`
+* **Visualization:** `Folium` (Interactive Web Maps), `Matplotlib` (Static Rendering)
+* **Algorithm:** Dijkstra’s Shortest Path, Brandes' Betweenness Centrality
+
+---
+
+##  Project Structure
+```bash
+├── 01_ingest_bonn.py          # Downloads raw vector data from OSM
+├── 02_centrality.py           # Calculates Betweenness Centrality
+├── 03_visualize.py            # Generates static heatmaps
+├── 04_interactive_map.py      # Creates interactive HTML dashboard
+├── 05_walkability.py          # Generates 15-min Isochrones
+├── 06_shortest_path.py        # Runs Dijkstra Routing (Surveyor Commute)
+├── 07_master_dashboard.py     # COMBINES EVERYTHING into one Web-GIS
+├── bonn_master_dashboard.html # <--- The Final Output File
+└── README.md
+```
 ---
 *Melih Levent Aslan | M.Sc. Geodetic Engineering Student, University of Bonn*
