@@ -1,0 +1,34 @@
+import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
+import osmnx as ox
+
+def visualize_debug():
+    print("1. Loading your saved analysis...")
+    G = ox.load_graphml("bonn_centrality.graphml")
+    
+    print("2. REPAIRING DATA types...")
+    # We loop through every node and force 'betweenness' to be a float (decimal number)
+    count = 0
+    for node, data in G.nodes(data=True):
+        if 'betweenness' in data:
+            try:
+                data['betweenness'] = float(data['betweenness'])
+                count += 1
+            except ValueError:
+                data['betweenness'] = 0.0
+    
+    print(f"   > Successfully repaired {count} nodes.")
+
+    print("3. Generating colors...")
+    nc = ox.plot.get_node_colors_by_attr(G, 'betweenness', cmap='inferno')
+    
+    print("4. Rendering image (High Res)...")
+    fig, ax = ox.plot_graph(G, node_color=nc, node_size=30, edge_linewidth=0.5, 
+                            bgcolor='k', show=False, close=True, 
+                            filepath="bonn_centrality_fixed.png", save=True, dpi=300)
+    
+    print("SUCCESS! Open 'bonn_centrality_fixed.png' to see your heatmap.")
+
+if __name__ == "__main__":
+    visualize_debug()

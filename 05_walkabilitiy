@@ -1,0 +1,61 @@
+import osmnx as ox
+import networkx as nx
+import geopandas as gpd
+from shapely.geometry import Point, Polygon
+import pandas as pd 
+
+# --- CONFIG ---
+PLACE_POINT = (50.733, 7.102) # Uni Bonn (Hofgarten)
+TRIP_TIMES = [5, 10, 15] # Minutes
+WALK_SPEED = 4.5 # km/h
+# Colors: 5min (Green/Go), 10min (Yellow/Mod), 15min (Red/Limit)
+ISOCHRONE_COLORS = ["#00ff00", "#ffff00", "#ff0000"] 
+
+def generate_interactive_isochrones():
+    print("1. Loading graph...")
+    G = ox.load_graphml("bonn_walk_network.graphml")
+    G_proj = ox.project_graph(G)
+    
+    print("2. Adding travel time weights...")
+    meters_per_minute = WALK_SPEED * 1000 / 60 
+    for u, v, k, data in G_proj.edges(keys=True, data=True):
+        data['time'] = data['length'] / meters_per_minute
+
+    print(f"3. Calculating {TRIP_TIMES} minute isochrones...")
+    center_node = ox.distance.nearest_nodes(G_proj, X=366000, Y=5621000)
+    
+    isochrone_data = []
+
+    # Sort largest to smallest so small ones appear on top
+    for trip_time in sorted(TRIP_TIMES, reverse=True):
+        print(f"   > Processing {trip_time} min zone...")
+        subgraph = nx.ego_graph(G_proj, center_node, radius=trip_time, distance='time')
+        node_points = [Point((data['x'], data['y'])) for node, data in subgraph.nodes(data=True)]
+        
+        if node_points:
+             polygon = gpd.GeoSeries(node_points).union_all().convex_hull
+             isochrone_data.append({'time': str(trip_time) + " min", 'geometry': polygon})
+    
+    print("4. converting to GeoDataFrame...")
+    gdf = gpd.GeoDataFrame(isochrone_data, crs=G_proj.graph['crs'])
+
+    print("5. Rendering Interactive Map...")
+    m = gdf.explore(
+        column='time', 
+        cmap='viridis_r',
+        tiles='CartoDB dark_matter',
+        alpha=0.4, # Transparency 
+        legend=True
+    )
+    import folium
+    folium.Marker(
+        location=[PLACE_POINT[0], PLACE_POINT[1]],
+        popup="Uni Bonn (Hofgarten)",
+        icon=folium.Icon(color="white", icon="university", prefix='fa')
+    ).add_to(m)
+
+    m.save("bonn_walkability_map.html")
+    print("SUCCESS! Open 'bonn_walkability_map.html' in your browser.")
+
+if __name__ == "__main__":
+    generate_interactive_isochrones()

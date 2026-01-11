@@ -1,0 +1,122 @@
+import osmnx as ox
+import networkx as nx
+import geopandas as gpd
+import folium
+from shapely.geometry import Point, LineString
+
+# --- CONFIG ---
+CENTER_POINT = (50.733, 7.102) # Uni Bonn
+AMTSGERICHT = (50.7366, 7.0974)
+TRIP_TIMES = [5, 10, 15]
+WALK_SPEED = 4.5
+
+def create_master_dashboard():
+    print("--- BUILDING MASTER DASHBOARD ---")
+    
+    # 1. BASE MAP
+    print("1. Initializing Map...")
+    m = folium.Map(location=CENTER_POINT, zoom_start=14, tiles='CartoDB dark_matter')
+    
+    # Load Graph
+    G = ox.load_graphml("bonn_walk_network.graphml")
+    
+    # --- LAYER 1: CENTRALITY (HEATMAP) ---
+    print("2. Generating Centrality Layer...")
+    # We load the data you already calculated in step 2 to save time
+    G_central = ox.load_graphml("bonn_centrality.graphml")
+    
+    # Repair data types (Safety check)
+    for node, data in G_central.nodes(data=True):
+        if 'betweenness' in data:
+            try:
+                data['betweenness'] = float(data['betweenness'])
+            except:
+                data['betweenness'] = 0.0
+                
+    gdf_nodes, _ = ox.graph_to_gdfs(G_central)
+    
+    # Create FeatureGroup for toggling
+    fg_centrality = folium.FeatureGroup(name="Centrality (Heatmap)")
+    
+    # We filter only top 20% important nodes to keep map fast
+    threshold = gdf_nodes['betweenness'].quantile(0.8)
+    gdf_top = gdf_nodes[gdf_nodes['betweenness'] > threshold]
+    
+    # Add dots manually to the FeatureGroup
+    for idx, row in gdf_top.iterrows():
+        folium.CircleMarker(
+            location=[row.geometry.y, row.geometry.x],
+            radius=2,
+            color=None,
+            fill=True,
+            fill_color='#ffcc00', # Gold
+            fill_opacity=0.6,
+            popup=f"Score: {row['betweenness']:.4f}"
+        ).add_to(fg_centrality)
+    
+    fg_centrality.add_to(m)
+
+    # --- LAYER 2: ISOCHRONES (15-MIN ZONES) ---
+    print("3. Generating Isochrone Layer...")
+    fg_iso = folium.FeatureGroup(name="Walkability (5/10/15min)")
+    
+    # Reproject for distance calcs
+    G_proj = ox.project_graph(G)
+    meters_per_minute = WALK_SPEED * 1000 / 60 
+    for u, v, k, data in G_proj.edges(keys=True, data=True):
+        data['time'] = data['length'] / meters_per_minute
+        
+    center_node = ox.distance.nearest_nodes(G_proj, X=366000, Y=5621000) # Approx UTM
+    
+    iso_colors = ["#00ff00", "#ffff00", "#ff0000"] # Green, Yellow, Red
+    
+    for trip_time, color in zip(sorted(TRIP_TIMES, reverse=True), iso_colors):
+        subgraph = nx.ego_graph(G_proj, center_node, radius=trip_time, distance='time')
+        node_points = [Point((data['x'], data['y'])) for node, data in subgraph.nodes(data=True)]
+        if node_points:
+            poly = gpd.GeoSeries(node_points).union_all().convex_hull
+            # Convert back to Lat/Lon for Folium
+            poly_gdf = gpd.GeoDataFrame(geometry=[poly], crs=G_proj.graph['crs']).to_crs("EPSG:4326")
+            
+            folium.GeoJson(
+                poly_gdf,
+                style_function=lambda x, color=color: {'fillColor': color, 'color': color, 'weight': 1, 'fillOpacity': 0.3}
+            ).add_to(fg_iso)
+            
+    fg_iso.add_to(m)
+
+    # --- LAYER 3: SURVEYOR ROUTE ---
+    print("4. Generating Surveyor Route Layer...")
+    fg_route = folium.FeatureGroup(name="Surveyor Commute", show=True) # Default ON
+    
+    # Routing (GPS Mode)
+    orig_node = ox.distance.nearest_nodes(G, X=CENTER_POINT[1], Y=CENTER_POINT[0])
+    dest_node = ox.distance.nearest_nodes(G, X=AMTSGERICHT[1], Y=AMTSGERICHT[0])
+    
+    # Add Edge Weights
+    G = ox.add_edge_speeds(G)
+    G = ox.add_edge_travel_times(G)
+    
+    route = nx.shortest_path(G, orig_node, dest_node, weight='length')
+    route_gdf = ox.routing.route_to_gdf(G, route, weight='length')
+    
+    folium.GeoJson(
+        route_gdf,
+        style_function=lambda x: {'color': '#00ccff', 'weight': 5, 'opacity': 0.9}, # Cyan Blue
+        tooltip="Optimal Path"
+    ).add_to(fg_route)
+    
+    # Add Icons
+    folium.Marker(CENTER_POINT, popup="Uni Bonn", icon=folium.Icon(color="white", icon="university", prefix='fa')).add_to(fg_route)
+    folium.Marker(AMTSGERICHT, popup="Amtsgericht", icon=folium.Icon(color="green", icon="gavel", prefix='fa')).add_to(fg_route)
+    
+    fg_route.add_to(m)
+
+    # --- FINALIZE ---
+    print("5. Saving Master Dashboard...")
+    folium.LayerControl(collapsed=False).add_to(m)
+    m.save("bonn_master_dashboard.html")
+    print("SUCCESS! Open 'bonn_master_dashboard.html'. You can now toggle layers on/off!")
+
+if __name__ == "__main__":
+    create_master_dashboard()

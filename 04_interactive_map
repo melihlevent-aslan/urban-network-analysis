@@ -1,0 +1,36 @@
+import osmnx as ox
+import geopandas as gpd
+import folium
+
+def generate_interactive_map():
+    print("1. Loading your saved analysis...")
+    G = ox.load_graphml("bonn_centrality.graphml")
+    
+    print("2. Repairing data types...")
+    for node, data in G.nodes(data=True):
+        if 'betweenness' in data:
+            try:
+                data['betweenness'] = float(data['betweenness'])
+            except:
+                data['betweenness'] = 0.0
+
+    print("3. Converting to GeoDataFrame (The Modern Way)...")
+    # This splits the graph into two data tables: Nodes (Points) and Edges (Lines)
+    gdf_nodes, gdf_edges = ox.graph_to_gdfs(G)
+
+    print("4. Rendering Interactive Map with GeoPandas...")
+    # We use .explore(), which is the new standard for interactive maps
+    m = gdf_nodes.explore(
+        column='betweenness',  # Color by centrality
+        cmap='inferno',        # Color scheme (Yellow = High, Black = Low)
+        tiles='CartoDB dark_matter', # Dark mode background
+        marker_kwds={'radius': 8, 'fill': True}, # Make dots visible
+        tooltip=['betweenness'], 
+        popup=['betweenness']    
+    )
+    output_file = "bonn_digital_twin.html"
+    m.save(output_file)
+    print(f"SUCCESS! Open '{output_file}' in your browser.")
+
+if __name__ == "__main__":
+    generate_interactive_map()

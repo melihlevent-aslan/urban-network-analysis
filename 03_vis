@@ -1,0 +1,22 @@
+import matplotlib
+matplotlib.use('Agg') 
+
+import matplotlib.pyplot as plt
+import osmnx as ox
+
+def visualize_existing_data():
+    print("1. Loading your saved analysis...")
+    G = ox.load_graphml("bonn_centrality.graphml")
+    
+    print("2. Generating colors from 'betweenness' data...")
+    nc = ox.plot.get_node_colors_by_attr(G, 'betweenness', cmap='inferno')
+    
+    print("3. Rendering image (Robust Mode)...")
+    fig, ax = ox.plot_graph(G, node_color=nc, node_size=30, edge_linewidth=0.5, 
+                            bgcolor='k', show=False, close=True, 
+                            filepath="bonn_centrality_fixed.png", save=True, dpi=300)
+    
+    print("SUCCESS! Open 'bonn_centrality_fixed.png' to see your heatmap.")
+
+if __name__ == "__main__":
+    visualize_existing_data()

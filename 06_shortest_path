@@ -1,0 +1,59 @@
+import osmnx as ox
+import networkx as nx
+import folium
+
+# --- CONFIG ---
+# Uni Bonn (Hofgarten)
+START_COORDS = (50.733, 7.102) 
+# Amtsgericht Bonn (Land Registry)
+END_COORDS = (50.7366, 7.0974) 
+
+def calculate_shortest_path():
+    print("1. Loading graph...")
+    # KEY FIX: We load the graph but DO NOT project it yet.
+    # We keep it in Lat/Lon degrees so it matches our GPS coordinates.
+    G = ox.load_graphml("bonn_walk_network.graphml")
+    
+    # Ensure edge weights exist
+    G = ox.add_edge_speeds(G)
+    G = ox.add_edge_travel_times(G)
+
+    print("2. Finding nearest nodes (GPS Mode)...")
+    # Now this search will actually work because both are in Degrees
+    orig_node = ox.distance.nearest_nodes(G, X=START_COORDS[1], Y=START_COORDS[0])
+    dest_node = ox.distance.nearest_nodes(G, X=END_COORDS[1], Y=END_COORDS[0])
+
+    print(f"   > Start Node: {orig_node}")
+    print(f"   > End Node:   {dest_node}")
+
+    if orig_node == dest_node:
+        print("(!) CRITICAL ERROR: Start and End nodes are still identical. Check coordinates.")
+        return
+
+    print("3. Running Dijkstra's Algorithm...")
+    route = nx.shortest_path(G, orig_node, dest_node, weight='length')
+    
+    print("4. Converting to Data...")
+    # This function works now because the route is valid
+    route_gdf = ox.routing.route_to_gdf(G, route, weight='length')
+    
+    total_dist = route_gdf['length'].sum()
+    print(f"   > SUCCESS! Route Distance: {total_dist:.2f} meters")
+
+    print("5. Visualizing...")
+    m = route_gdf.explore(
+        color="red", 
+        tiles='CartoDB dark_matter', 
+        style_kwds={'weight': 5, 'opacity': 0.8},
+        tooltip=['name', 'length']
+    )
+
+    # Markers
+    folium.Marker(START_COORDS, popup="Uni Bonn", icon=folium.Icon(color="blue", icon="user", prefix='fa')).add_to(m)
+    folium.Marker(END_COORDS, popup="Amtsgericht", icon=folium.Icon(color="green", icon="gavel", prefix='fa')).add_to(m)
+
+    m.save("bonn_surveyor_route.html")
+    print("SUCCESS! Open 'bonn_surveyor_route.html' to see the corrected path.")
+
+if __name__ == "__main__":
+    calculate_shortest_path()
